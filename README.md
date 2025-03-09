@@ -2,9 +2,8 @@
 import RPi.GPIO as GPIO
 import time
 import threading
-from imx500_classification_demo import check_ambulance
+from imx500_fixed import check_ambulance
 
-# GPIO Setup
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 RED_PIN = 17
@@ -12,7 +11,6 @@ YELLOW_PIN = 27
 GREEN_PIN = 22
 GPIO.setup([RED_PIN, YELLOW_PIN, GREEN_PIN], GPIO.OUT, initial=GPIO.LOW)
 
-# State variables
 ambulance_detected = False
 state_lock = threading.Lock()
 
@@ -30,11 +28,11 @@ def detection_thread():
         time.sleep(0.1)
 
 def normal_cycle():
-    set_lights(GPIO.LOW, GPIO.LOW, GPIO.HIGH)  # Green
+    set_lights(GPIO.LOW, GPIO.LOW, GPIO.HIGH)
     time.sleep(15)
-    set_lights(GPIO.LOW, GPIO.HIGH, GPIO.LOW)  # Yellow
+    set_lights(GPIO.LOW, GPIO.HIGH, GPIO.LOW)
     time.sleep(3)
-    set_lights(GPIO.HIGH, GPIO.LOW, GPIO.LOW)  # Red
+    set_lights(GPIO.HIGH, GPIO.LOW, GPIO.LOW)
     time.sleep(15)
 
 def main_control():
