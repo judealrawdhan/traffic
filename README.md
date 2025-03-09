@@ -4,81 +4,64 @@ import time
 import threading
 from imx500_fixed import check_ambulance
 
-# GPIO Configuration
 GPIO.setmode(GPIO.BCM)
-RED_PIN = 17    # GPIO17 (Physical Pin 11)
-YELLOW_PIN = 27  # GPIO27 (Physical Pin 13)
-GREEN_PIN = 22   # GPIO22 (Physical Pin 15)
-
-# Initialize GPIO
 GPIO.setwarnings(False)
-GPIO.setup([RED_PIN, YELLOW_PIN, GREEN_PIN], GPIO.OUT, initial=GPIO.LOW)
+PINS = {'red': 17, 'yellow': 27, 'green': 22}
 
-# State Management
-ambulance_detected = False
+for pin in PINS.values():
+    GPIO.setup(pin, GPIO.OUT)
+    GPIO.output(pin, GPIO.LOW)
+
 state_lock = threading.Lock()
+emergency_flag = False
 
 def set_lights(red, yellow, green):
-    """Control traffic light LEDs"""
-    GPIO.output(RED_PIN, red)
-    GPIO.output(YELLOW_PIN, yellow)
-    GPIO.output(GREEN_PIN, green)
+    GPIO.output(PINS['red'], red)
+    GPIO.output(PINS['yellow'], yellow)
+    GPIO.output(PINS['green'], green)
 
 def detection_thread():
-    """Monitor for ambulance detection"""
-    global ambulance_detected
+    global emergency_flag
     while True:
-        if check_ambulance():  # From camera script
+        if check_ambulance():
             with state_lock:
-                ambulance_detected = True
-                print("AMBULANCE FLAG SET")
-        time.sleep(0.1)  # Check 10x/second
+                emergency_flag = True
+        time.sleep(0.1)
 
 def normal_cycle():
-    """Regular traffic light sequence"""
-    print("NORMAL: GREEN 15s")
-    set_lights(GPIO.LOW, GPIO.LOW, GPIO.HIGH)
+    set_lights(0, 0, 1)  # Green
     time.sleep(15)
-    
-    print("NORMAL: YELLOW 3s")
-    set_lights(GPIO.LOW, GPIO.HIGH, GPIO.LOW)
+    set_lights(0, 1, 0)  # Yellow
     time.sleep(3)
-    
-    print("NORMAL: RED 15s")
-    set_lights(GPIO.HIGH, GPIO.LOW, GPIO.LOW)
+    set_lights(1, 0, 0)  # Red
     time.sleep(15)
 
 def emergency_cycle():
-    """Priority sequence for ambulance"""
-    print("EMERGENCY: GREEN NOW")
-    set_lights(GPIO.LOW, GPIO.LOW, GPIO.HIGH)
-    time.sleep(15)  # Extended green
-    
-    print("EMERGENCY: YELLOW 3s")
-    set_lights(GPIO.LOW, GPIO.HIGH, GPIO.LOW)
+    set_lights(0, 0, 1)  # Green
+    print("EMERGENCY: Ambulance detected!")
+    time.sleep(20)
+    set_lights(0, 1, 0)  # Yellow
     time.sleep(3)
-    
-    print("EMERGENCY: RED 15s")
-    set_lights(GPIO.HIGH, GPIO.LOW, GPIO.LOW)
-    time.sleep(15)
+    set_lights(1, 0, 0)  # Red
+    time.sleep(10)
 
-def main_control():
-    global ambulance_detected
-    detection = threading.Thread(target=detection_thread, daemon=True)
-    detection.start()
+def main():
+    detector = threading.Thread(target=detection_thread, daemon=True)
+    detector.start()
 
     try:
         while True:
             with state_lock:
-                if ambulance_detected:
+                if emergency_flag:
                     emergency_cycle()
-                    ambulance_detected = False
+                    emergency_flag = False
                 else:
                     normal_cycle()
     except KeyboardInterrupt:
+        set_lights(0, 0, 0)
         GPIO.cleanup()
-        print("\nTraffic system stopped safely")
+        print("System stopped")
 
 if __name__ == "__main__":
-    print("Traffic Control System Started")
-    main_control()
+    print("Traffic Control System Active")
+    main()
